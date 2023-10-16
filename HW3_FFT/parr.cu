@@ -1,7 +1,10 @@
 #include <cufft.h>
 #include <cuda_runtime.h>
+#include <iostream>
 
-#define N 512 // 定义适当的大小
+const float PI = 3.14159265358979323846f;
+
+#define N 512
 
 __global__ void butterflyStepKernel(cufftComplex *a, int n, bool invert) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -19,7 +22,6 @@ __global__ void butterflyStepKernel(cufftComplex *a, int n, bool invert) {
 }
 
 void parallelFFT(cufftComplex *data, int n, bool invert) {
-    // 指定使用第一块GPU
     cudaSetDevice(0);
     
     cufftComplex *d_data;
@@ -35,4 +37,18 @@ void parallelFFT(cufftComplex *data, int n, bool invert) {
 
     cudaMemcpy(data, d_data, sizeof(cufftComplex) * n, cudaMemcpyDeviceToHost);
     cudaFree(d_data);
+}
+
+int main() {
+    int n = N; // Number of points
+    cufftComplex *data = new cufftComplex[n];
+
+    // Initialize the data here if needed
+
+    parallelFFT(data, n, false);
+
+    // Display results or further processing
+
+    delete[] data;
+    return 0;
 }

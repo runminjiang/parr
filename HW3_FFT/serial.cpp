@@ -3,7 +3,7 @@
 #include <vector>
 #include <cmath>
 
-const double PI = 3.14159265358979323846;
+const double PI = 3.14159265358979323846f;
 
 void fft(std::vector<std::complex<double>>& a, bool invert) {
     int n = a.size();
@@ -29,4 +29,27 @@ void fft(std::vector<std::complex<double>>& a, bool invert) {
         }
         w *= wn;
     }
+}
+
+int main() {
+    int n;
+    std::cout << "Enter number of points (should be a power of 2): ";
+    std::cin >> n;
+
+    std::vector<std::complex<double>> data(n);
+    std::cout << "Enter " << n << " complex numbers (real and imaginary parts):\n";
+    for(int i = 0; i < n; i++) {
+        double realPart, imagPart;
+        std::cin >> realPart >> imagPart;
+        data[i] = std::complex<double>(realPart, imagPart);
+    }
+
+    fft(data, false);  // Forward FFT
+
+    std::cout << "Transformed data:\n";
+    for(const auto& val : data) {
+        std::cout << val.real() << " + " << val.imag() << "i\n";
+    }
+
+    return 0;
 }
