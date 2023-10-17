@@ -1,3 +1,4 @@
+// parallel_matrix_multiply.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
@@ -11,7 +12,7 @@ double B[N][P];
 double C[M][P];
 
 void matrixMultiplyParallel() {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < M; i++) {
         for (int j = 0; j < P; j++) {
             C[i][j] = 0;

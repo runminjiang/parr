@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <omp.h>
+
+#define THRESHOLD 10000
+#define MAX_LEVELS 300
 
 void swap(int* a, int* b) {
     int temp = *a;
@@ -8,13 +12,11 @@ void swap(int* a, int* b) {
     *b = temp;
 }
 
-int parallel_partition(int arr[], int low, int high) {
+int partition(int arr[], int low, int high) {
     int pivot = arr[high];
-    int i = low - 1;
-    int j;
+    int i = (low - 1);
 
-#pragma omp parallel for private(j) schedule(dynamic) reduction(+:i)
-    for (j = low; j <= high - 1; j++) {
+    for (int j = low; j <= high - 1; j++) {
         if (arr[j] < pivot) {
             i++;
             swap(&arr[i], &arr[j]);
@@ -24,55 +26,78 @@ int parallel_partition(int arr[], int low, int high) {
     return (i + 1);
 }
 
-void parallel_quicksort(int arr[], int low, int high) {
-    if (low < high) {
-        int pivot = parallel_partition(arr, low, high);
+void quicksort(int arr[], int low, int high) {
+    int stack[MAX_LEVELS];
+    int top = -1;
 
-#pragma omp task
-        parallel_quicksort(arr, low, pivot - 1);
+    stack[++top] = low;
+    stack[++top] = high;
 
-#pragma omp task
-        parallel_quicksort(arr, pivot + 1, high);
+    while (top >= 0) {
+        high = stack[top--];
+        low = stack[top--];
 
-#pragma omp taskwait
+        int pivot = partition(arr, low, high);
+
+        if (high - low > THRESHOLD) {
+            #pragma omp task default(none) shared(arr, stack) firstprivate(low, high, pivot, top)
+            {
+                if (pivot - 1 > low) {
+                    stack[++top] = low;
+                    stack[++top] = pivot - 1;
+                }
+
+                if (pivot + 1 < high) {
+                    stack[++top] = pivot + 1;
+                    stack[++top] = high;
+                }
+            }
+        } else {
+            if (pivot - 1 > low) {
+                stack[++top] = low;
+                stack[++top] = pivot - 1;
+            }
+
+            if (pivot + 1 < high) {
+                stack[++top] = pivot + 1;
+                stack[++top] = high;
+            }
+        }
     }
 }
 
 int main() {
-    const int N = 100000;  // 设置数组大小为十万
+    const int N = 1000000;
     int arr[N];
 
-    // 使用随机数填充数组
     for (int i = 0; i < N; i++) {
-        arr[i] = rand() % (N * 10);  // 假设数字范围为0到1000000
+        arr[i] = rand() % (N * 10);
     }
 
     printf("Original array (first 20 numbers): \n");
-    // 打印前20个数字
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 20 && i < N; i++) {
         printf("%d ", arr[i]);
     }
-    printf("\n... (and so on for 100,000 numbers)\n");
+    printf("\n... (and so on for 1,000,000 numbers)\n");
 
-#pragma omp parallel
+    double start_time, end_time;
+    start_time = omp_get_wtime();
+
+    #pragma omp parallel
     {
-#pragma omp single
-        {
-            parallel_quicksort(arr, 0, N - 1);
-        }
+        #pragma omp single nowait
+        quicksort(arr, 0, N - 1);
     }
+
+    end_time = omp_get_wtime();
 
     printf("Sorted array (first 20 numbers): \n");
-    // 同样地，只打印排序后的前20个数字
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 20 && i < N; i++) {
         printf("%d ", arr[i]);
     }
-    printf("\n... (and so on for 100,000 numbers)\n");
+    printf("\n... (and so on for 1,000,000 numbers)\n");
+
+    printf("Time taken for sorting: %f seconds\n", end_time - start_time);
 
     return 0;
 }
-
-
-//并行分区：我们可以通过并行扫描来实现。
-//任务切割：使用task而不仅仅是sections进行更细粒度的并行化。
-//动态调度：对于不均匀分布的数据，动态调度可能提供更好的负载平衡。
