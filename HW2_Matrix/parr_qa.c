@@ -11,17 +11,17 @@ double B[N][P];
 double C[M][P];
 
 void matrixMultiplyParallel() {
-    #pragma omp parallel for
+#pragma omp parallel for collapse(2) schedule(dynamic) firstprivate(C)
     for (int i = 0; i < M; i++) {
         for (int j = 0; j < P; j++) {
-            C[i][j] = 0;
+            double sum = 0.0;
             for (int k = 0; k < N; k++) {
-                C[i][j] += A[i][k] * B[k][j];
+                sum += A[i][k] * B[k][j];
             }
+            C[i][j] = sum;
         }
     }
 }
-
 void initializeMatrices() {
     for (int i = 0; i < M; i++) {
         for (int j = 0; j < N; j++) {
