@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <cuda_runtime.h>
-#include "/home/opc/imaging/parr/HW4_Image/mnist/include/mnist/mnist_reader.hpp"
+#include "/home/opc/imaging/parr/HW4_Image/include/mnist/mnist_reader.hpp"
 
 __global__ void thresholdingKernel(uint8_t *images, int numImages, int imageSize, uint8_t threshold) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;

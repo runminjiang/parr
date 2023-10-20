@@ -1,12 +1,25 @@
 #include <iostream>
 #include <vector>
 #include <cuda_runtime.h>
-#include "/home/opc/imaging/parr/HW4_Image/mnist/include/mnist/mnist_reader.hpp"
+#include "/home/opc/imaging/parr/HW4_Image/include/mnist/mnist_reader.hpp"
 
 __global__ void thresholdingKernel(uint8_t *images, int numImages, int imageSize, uint8_t threshold) {
+    // 使用共享内存
+    __shared__ uint8_t sharedImages[1024];  // 假设每个线程块有1024个线程
+
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
     if (idx < numImages * imageSize) {
-        images[idx] = (images[idx] > threshold) ? 255 : 0;  // 基于阈值的分割
+        // 将数据从全局内存加载到共享内存
+        sharedImages[threadIdx.x] = images[idx];
+        __syncthreads();  // 确保所有线程都完成了数据加载
+
+        // 在共享内存中进行处理
+        sharedImages[threadIdx.x] = (sharedImages[threadIdx.x] > threshold) ? 255 : 0;
+        __syncthreads();  // 确保所有线程都完成了数据处理
+
+        // 将处理后的数据写回全局内存
+        images[idx] = sharedImages[threadIdx.x];
     }
 }
 
@@ -23,31 +36,27 @@ int main() {
 
     uint8_t *d_images;
     cudaMalloc(&d_images, totalImagesSize * sizeof(uint8_t));
-    cudaMemcpy(d_images, h_all_images, totalImagesSize * sizeof(uint8_t), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_images, h_all_images, totalImagesSize * sizeof(uint8_t), cudaMemcpyHostToDevice);
 
-    int threadsPerBlock = 256;
+    int threadsPerBlock = 1024;
     int blocks = (totalImagesSize + threadsPerBlock - 1) / threadsPerBlock;
     uint8_t threshold = 128;
 
-    // Define CUDA events for timing
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
-
-    // Record the start event
-    cudaEventRecord(start, NULL);
+    cudaEventRecord(start);
 
     thresholdingKernel<<<blocks, threadsPerBlock>>>(d_images, dataset.training_images.size(), imageSize, threshold);
+    cudaDeviceSynchronize();
 
-    // Record the stop event
-    cudaEventRecord(stop, NULL);
+    cudaEventRecord(stop);
     cudaEventSynchronize(stop);
-
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
     std::cout << "Kernel execution time: " << milliseconds << " ms" << std::endl;
 
-    cudaMemcpy(h_all_images, d_images, totalImagesSize * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(h_all_images, d_images, totalImagesSize * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 
     for (int i = 0; i < dataset.training_images.size(); i++) {
         memcpy(dataset.training_images[i].data(), h_all_images + i * imageSize, imageSize);
@@ -56,10 +65,8 @@ int main() {
     cudaFree(d_images);
     delete[] h_all_images;
 
-    // Clean up the events
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-
 
     return 0;
 }

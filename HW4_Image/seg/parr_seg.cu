@@ -34,7 +34,5 @@ int main() {
 
     cudaFree(d_images);
 
-    // ... 你可以保存处理后的图像或进行其他操作 ...
-
     return 0;
 }
