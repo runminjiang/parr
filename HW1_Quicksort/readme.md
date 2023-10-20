@@ -7,7 +7,7 @@
 
 ## Parr（OpenMP并行）
 编译：
-``gcc -fopenmp program_name.c -o program_name``\
+``gcc -fopenmp program_name.c -o program_name`` \
 测试：
 ``time ./program_name``
 
